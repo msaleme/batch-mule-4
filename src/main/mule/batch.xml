@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="4e63eab7-b07f-4444-8158-983584c4e8b0" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="75577ba4-bcb1-4ef0-b6af-624386ffba56">
+		<vm:queues >
+			<vm:queue queueName="b2" />
+		</vm:queues>
+	</vm:config>
+	<flow name="batchFlow" doc:id="065ed7bf-f415-483b-b135-2777cac96a72" >
+		<http:listener doc:name="Listener" doc:id="04be6463-df69-4c3c-96f6-c7ddd8543487" config-ref="HTTP_Listener_config" path="/batch"/>
+		<set-payload value="#[payload]" doc:name="Set Payload" doc:id="1e530f72-06f5-49c8-93d1-b5ef1bbbf166" />
+		<set-variable value="#[[11,21,34,114,325]]" doc:name="Set Variable" doc:id="ea53993c-282d-4989-9734-525750b38f23" variableName="MyCollection"/>
+		<foreach doc:name="For Each" doc:id="8fde03e8-277b-4f97-a00e-5bee1a7682a6" collection="#[vars.MyCollection]">
+			<logger level="INFO" doc:name="Logger" doc:id="c615679c-45f4-4ec7-9f8a-0029bb18dd60" message="#['got here: ' ++ vars.counter as String ++ ' ; ' ++ payload as String]"/>
+		</foreach>
+		<ee:transform doc:name="Transform Message" doc:id="6311c7b0-6ed0-4816-afca-ca5575f12c61" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+map ( vars.MyCollection, (value, index) -> {(index+1): value} )]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="batchFlow1" doc:id="ffc9c6d9-379a-40d3-aa26-2db287a5344e" >
+		<http:listener doc:name="Listener" doc:id="7234fb71-28d3-4e80-b12a-365a3fc40256" config-ref="HTTP_Listener_config" path="/b"/>
+		<set-payload value="#[[11,21,34,114,325,999,121,3]]" doc:name="Copy_of_Set Payload" doc:id="f608c6ff-17d7-4882-bebe-26d1caa5ba33" />
+		<batch:job jobName="batchBatch_Job" doc:id="3949d9ad-3fc4-4787-b802-7b8ff418d906" >
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="cea2b37a-3f83-483a-8de4-cdd321c1a330" >
+					<logger level="INFO" doc:name="Copy_of_Logger" doc:id="da32c4c1-b969-4760-a440-659252536a34" message="#['got here: ' ++ payload as String]" />
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete>
+				<logger level="INFO" doc:name="Copy_of_Copy_of_Logger" doc:id="fddb0fb2-cd52-4f14-a806-7a8b41b8519f" message="#['got here complete: ']" />
+			</batch:on-complete>
+		</batch:job>
+		<ee:transform doc:name="Copy_of_Transform Message" doc:id="c2f222c9-986c-43a4-a11e-5ddacfc0e93a">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+map ([payload], (value, index) -> {(index+2): value} )]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="Copy_of_batchFlow" doc:id="00d93d89-ba06-4d23-9991-87cec30b1932" >
+		<http:listener doc:name="Copy_of_Listener" doc:id="da64b78b-27a0-4283-8091-422270f1f6ce" config-ref="HTTP_Listener_config" path="/vm" />
+		<set-payload value="#[[11,21,34,114,325,999,121,3]]" doc:name="Copy_of_Copy_of_Set Payload" doc:id="edd3eba0-58f7-4d64-bebc-238fffd9f78b" />
+		<batch:job jobName="Copy_of_batchBatch_Job" doc:id="d240940c-3613-458b-86ef-aca97f380049" blockSize="2">
+			<batch:process-records >
+				<batch:step name="Copy_of_Batch_Step" doc:id="6576c673-2a16-4007-8eb7-2f605516b229" >
+					<logger level="INFO" doc:name="Copy_of_Copy_of_Logger" doc:id="d379a385-f2db-4a8c-a5c6-4a27e094a101" message="#['got here: ' ++ payload as String]" />
+					<vm:publish queueName="b2" doc:name="Publish" doc:id="3adf61c6-9b39-48c3-9a29-6319ed3eb195" config-ref="VM_Config"/>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Copy_of_Copy_of_Copy_of_Logger" doc:id="9a4cb38b-da04-4e87-a77a-bbb2405e7440" message="#['got here complete: ']" />
+			</batch:on-complete>
+		</batch:job>
+		<ee:transform doc:name="Copy_of_Copy_of_Transform Message" doc:id="eb7a5624-e5fa-4b09-8028-7529a118e213" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+map ([payload], (value, index) -> {(index+2): value} )]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="batchFlow2" doc:id="c5f73509-bdbd-484e-9b0e-169050998b8b" >
+		<vm:listener queueName="b2" doc:name="Listener" doc:id="67ce44e0-a76e-4e6c-a218-6a3dd1ace458" config-ref="VM_Config"/>
+		<logger level="INFO" doc:name="Copy_of_Copy_of_Copy_of_Logger" doc:id="a913ac7a-c60b-4036-aa35-e80acc065cef" message="#['got here b2: ' ++ payload as String]" />
+	</flow>
+</mule>
